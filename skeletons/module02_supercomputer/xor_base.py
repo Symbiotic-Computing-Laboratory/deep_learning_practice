@@ -80,6 +80,7 @@ def execute_exp(args):
     ins = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
     outs = np.array([[0], [1], [1], [0]])
     
+    #Build Model
     model = build_model(ins.shape[1], args.hidden, outs.shape[1], activation='sigmoid')
 
     # Callbacks
@@ -147,7 +148,14 @@ def create_parser():
     Create a command line parser for the XOR experiment
     '''
     parser = argparse.ArgumentParser(description='XOR Learner')
-    # TODO
+    
+    parser.add_argument('--exp', type=int, default=0, help='Experiment index')
+    parser.add_argument('--epochs', type=int, default=100, help='Number of training epochs')
+    parser.add_argument('--hidden', type=int, default=2, help='Number of Hidden Units')
+    # BOOLEAN SWITCH
+    parser.add_argument('--gpu', action='store_true', help='Use a GPU')
+    parser.add_argument('--nogo', action='store_true', help='Do not perform the experiment')
+    
     return parser
 
 '''
