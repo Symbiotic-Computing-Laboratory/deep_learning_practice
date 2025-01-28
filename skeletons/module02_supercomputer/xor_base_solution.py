@@ -45,19 +45,19 @@ def build_model(n_inputs, n_hidden, n_output, activation='elu', lrate=0.001):
     :param lrate: Learning rate for Adam Optimizer
     '''
     model = Sequential();
-    model.add(#TODO)
+    model.add(InputLayer(input_shape=(n_inputs,)))
 
     # Hidden layers
-    model.add(Dense(#TODO))
+    for i,n in enumerate(n_hidden):
+        model.add(Dense(n, use_bias=True, name="hidden_%d"%i, activation=activation))
 
-    # Output layer
-    model.add(Dense(#TODO))
+    model.add(Dense(n_output, use_bias=True, name="output", activation=activation))
     
     # Optimizer
-    opt = keras.optimizers.Adam(#TODO, amsgrad=False)
+    opt = keras.optimizers.Adam(learning_rate=lrate, amsgrad=False)
     
     # Bind the optimizer and the loss function to the model
-    model.compile(#TODO)
+    model.compile(loss='mse', optimizer=opt)
     
     # Generate an ASCII representation of the architecture
     if args.verbose >= 1:
@@ -72,7 +72,7 @@ def args2string(args):
     
     :param args: Command line arguments
     '''
-    return # TODO
+    return "exp_%02d_hidden_%s"%(args.exp, '_'.join([str(i) for i in args.hidden]))
     
     
 ########################################################
@@ -87,12 +87,12 @@ def execute_exp(args):
     # Run the experiment
 
     # Create training set: XOR
-    ins = np.array()
-    outs = np.array([)
+    ins = np.array([[0, 0], [0, 1], [1, 0], [1, 1]])
+    outs = np.array([[0], [1], [1], [0]])
     #####
 
     # Create the model
-    model = build_model()
+    model = build_model(ins.shape[1], args.hidden, outs.shape[1], activation='sigmoid')
 
     # Callbacks
 
@@ -120,7 +120,9 @@ def execute_exp(args):
         # Training
         print("Training...")
         
-        history = model.fit(# TODO
+        history = model.fit(x=ins,
+                            y=outs,
+                            epochs=args.epochs,
                             verbose=args.verbose>=2,
                             callbacks=[early_stopping_cb]
             )
@@ -183,7 +185,10 @@ def create_parser():
 
     parser.add_argument('--exp', type=int, default=0, help='Experiment number')
     parser.add_argument('--epochs', type=int, default=100, help='Number of training epochs')
-                    
+    #parser.add_argument('--hidden', type=int, default=2, help='Number of hidden units')  # Single hidden layer
+    parser.add_argument('--hidden', nargs='+', type=int, default=[2], help='Number of hidden units')  # List of hidden layers
+
+    parser.add_argument('--gpu', action='store_true', help='Use a GPU')
     parser.add_argument('--nogo', action='store_true', help='Do not perform the experiment')
     parser.add_argument('--verbose', '-v', action='count', default=0, help="Verbosity level")
 
