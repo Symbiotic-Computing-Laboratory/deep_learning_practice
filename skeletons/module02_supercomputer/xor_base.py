@@ -32,7 +32,7 @@ plt.rcParams['font.size'] = FONTSIZE
 #################################################################
 
 
-def build_model(n_inputs, n_hidden, n_output, activation='elu', lrate=0.001):
+def build_model(n_inputs:int, n_hidden:int, n_output:int, activation:str='elu', lrate:float=0.001)-> Sequential:
     '''
     Construct a network with one hidden layer
     - Adam optimizer
@@ -66,7 +66,7 @@ def build_model(n_inputs, n_hidden, n_output, activation='elu', lrate=0.001):
     return model
 
 
-def args2string(args):
+def args2string(args:argparse.ArgumentParser)->str:
     '''
     Translate the current set of arguments
     
@@ -76,7 +76,7 @@ def args2string(args):
     
     
 ########################################################
-def execute_exp(args):
+def execute_exp(args:argparse.ArgumentParser):
     '''
     Execute a single instance of an experiment.  The details are specified in the args object
     
@@ -132,7 +132,7 @@ def execute_exp(args):
             pickle.dump(history.history, fp)
             pickle.dump(args, fp)
 
-def display_learning_curve(fname):
+def display_learning_curve(fname:str):
     '''
     Display the learning curve that is stored in fname.
     As written, effectively assumes local execution
@@ -150,7 +150,7 @@ def display_learning_curve(fname):
     plt.ylabel('MSE')
     plt.xlabel('epochs')
 
-def display_learning_curve_set(dir, base):
+def display_learning_curve_set(dir:str, base:str):
     '''
     Plot the learning curves for a set of results
 
@@ -175,7 +175,7 @@ def display_learning_curve_set(dir, base):
     plt.xlabel('epochs')
     plt.legend(files)
     
-def create_parser():
+def create_parser()->argparse.ArgumentParser:
     '''
     Create a command line parser for the XOR experiment
     '''
