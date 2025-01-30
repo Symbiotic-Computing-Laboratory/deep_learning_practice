@@ -23,6 +23,9 @@ from keras.utils import plot_model
 import matplotlib.pyplot as plt
 from matplotlib import colors
 
+import wandb # NEW
+import socket # NEW
+
 #################################################################
 # Default plotting parameters
 FONTSIZE = 18
@@ -45,7 +48,7 @@ def build_model(n_inputs:int, n_hidden:int, n_output:int, activation:str='elu', 
     :param lrate: Learning rate for Adam Optimizer
     '''
     model = Sequential();
-    model.add(InputLayer(input_shape=(n_inputs,)))
+    model.add(InputLayer(shape=(n_inputs,)))
 
     # Hidden layers
     for i,n in enumerate(n_hidden):
@@ -72,7 +75,8 @@ def args2string(args:argparse.ArgumentParser)->str:
     
     :param args: Command line arguments
     '''
-    return "exp_%02d_hidden_%s"%(args.exp, '_'.join([str(i) for i in args.hidden]))
+
+    return "%s_%02d_hidden_%s"%(args.label, args.exp, '_'.join([str(i) for i in args.hidden]))
     
     
 ########################################################
@@ -97,7 +101,7 @@ def execute_exp(args:argparse.ArgumentParser):
     # Callbacks
 
     # Stop training early if we stop making progress
-    early_stopping_cb = keras.callbacks.EarlyStopping(patience=100,
+    early_stopping_cb = keras.callbacks.EarlyStopping(patience=1000,
                                                       restore_best_weights=True,
                                                       min_delta=0.001,
                                                       monitor='loss')
@@ -114,9 +118,26 @@ def execute_exp(args:argparse.ArgumentParser):
     if os.path.exists(fname_output):
         print("File %s already exists."%fname_output)
         return
+
+    # Plot the model
+    if args.render:
+        plot_model(model, to_file='results/%s_model_plot.png'%argstring, show_shapes=True, show_layer_names=True)
     
     # Only execute if we are 'going'
     if not args.nogo:
+        # Start wandb: NEW
+        run = wandb.init(project=#TODO, name='%s_E%d'%(args.label,args.exp),
+                         notes=argstring, config=#TODO)
+
+        if args.render:
+            wandb.log({'architecture': wandb.Image('results/%s_model_plot.png'%argstring)})
+        
+            # Log hostname
+            wandb.log({'hostname': socket.gethostname()})
+
+        # WandB callback
+        wandb_metrics_cb = # TODO
+
         # Training
         print("Training...")
         
@@ -124,15 +145,43 @@ def execute_exp(args:argparse.ArgumentParser):
                             y=outs,
                             epochs=args.epochs,
                             verbose=args.verbose>=2,
-                            callbacks=[early_stopping_cb]
+                            callbacks=[early_stopping_cb, #TODO] # UPDATE
             )
         
         print("Done Training")
+
+        # Results: NEW
+        results = {}
+        res = model.evaluate(ins, outs)
+
+        results['mse_train'] = res
+        results['ins'] = ins
+        results['outs'] = outs
+
+        # Log to WandB
+        wandb.log(results)
+
+        # Generate learning curve for wandb
+        fig, ax = plt.subplots()
+        ax.plot(history.history['loss'])
+        ax.set_xlabel('Epoch')
+        ax.set_ylabel('MSE')
+
+        fig.subplots_adjust(left=0.1, right=0.9, bottom=0.1, top=0.9)
+
+        wandb.log({'mse_plot': wandb.Image(fig)})
+
+        plt.close(fig)
+
+        # Close wandb
+        wandb.finish()
+
         
         # Save the training history
         with open(fname_output, "wb") as fp:
             pickle.dump(history.history, fp)
             pickle.dump(args, fp)
+            pickle.dump(results, fp)
 
 def display_learning_curve(fname:str):
     '''
@@ -191,6 +240,15 @@ def create_parser()->argparse.ArgumentParser:
     parser.add_argument('--gpu', action='store_true', help='Use a GPU')
     parser.add_argument('--nogo', action='store_true', help='Do not perform the experiment')
     parser.add_argument('--verbose', '-v', action='count', default=0, help="Verbosity level")
+
+    # High-level info for WandB: NEW
+    parser.add_argument('--project', type=str, default='XOR', help='WandB project name')
+
+    # Label for identifying specific experiment: NEW
+    parser.add_argument('--label', type=str, default=None, help="Extra label to add to output files");
+
+    # Render the model: NEW
+    parser.add_argument('--render', action='store_true', help='Render Model')
 
     return parser
 
