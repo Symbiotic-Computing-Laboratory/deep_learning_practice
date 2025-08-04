@@ -1,0 +1,6 @@
+--hidden=10
+--exp=2
+--epochs=4000
+--patience=200
+--wandb
+--wandb_run_label=xor
