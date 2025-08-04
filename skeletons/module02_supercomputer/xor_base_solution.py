@@ -1,24 +1,40 @@
 '''
-Deep Learning Demo: XOR
+Deep Learning Practice: XOR on the Supercomputer
 
 Command line version
 
-Andrew H. Fagg (andrewhfagg@gmail.com)
-'''
+This is the full solution: no fair peeking!
 
+Solution for both module 2 and module 3
+
+Andrew H. Fagg (andrewhfagg@gmail.com)
+
+'''
 import sys
 import argparse
 import copy
 import pickle
 import random
+import pandas as pd
 import numpy as np
-import os
-
+import matplotlib.pyplot as plt
+import tensorflow as tf
 import keras
+import os
+import time
+import wandb
+import socket
+
+# This is the keras 3 way of doing things
+from keras.layers import Input, Dense
 from keras.models import Sequential
-from keras.layers import BatchNormalization, Dropout, InputLayer, Dense
-from keras import Input, Model
 from keras.utils import plot_model
+
+# Default plotting parameters
+FONTSIZE = 18
+plt.rcParams['figure.figsize'] = (10, 6)
+plt.rcParams['font.size'] = FONTSIZE
+
 
 import matplotlib.pyplot as plt
 from matplotlib import colors
@@ -31,44 +47,65 @@ plt.rcParams['font.size'] = FONTSIZE
 
 #################################################################
 
-
-def build_model(n_inputs:int, n_hidden:int, n_output:int, activation:str='elu', lrate:float=0.001)-> Sequential:
+def build_model(n_inputs:int, 
+                n_hidden:[int], 
+                n_output:int, 
+                activation_hidden:str='elu', 
+                activation_output:str='elu',
+                lrate:float=0.001,
+                verbose:int=0)->Sequential:
     '''
-    Construct a network with one hidden layer
-    - Adam optimizer
-    - MSE loss
+    Build a simple fully connected model
     
     :param n_inputs: Number of input dimensions
-    :param n_hidden: Number of units in the hidden layer
+    :param n_hidden: List: number of units in each hidden layer
     :param n_output: Number of ouptut dimensions
-    :param activation: Activation function to be used for hidden and output units
+    :param activation_hidden: Activation function to be used for hidden and output units
+    :param activation_output: Activation function for the output unit(s)
     :param lrate: Learning rate for Adam Optimizer
     '''
+    # Simple sequential model
     model = Sequential();
-    model.add(InputLayer(input_shape=(n_inputs,)))
+    
+    # Input layer
+    model.add(Input(shape=(n_inputs,), name = 'Input'))
 
-    # Hidden layers
+    # Hidden layer
     for i,n in enumerate(n_hidden):
-        model.add(Dense(n, use_bias=True, name="hidden_%d"%i, activation=activation))
+        model.add(Dense(n, 
+                        use_bias=True,
+                        activation=activation_hidden,
+                        name=f'hidden_{i}',
+                       ))
+        
+    
+    # Output layer
+    model.add(Dense(n_output,
+                    use_bias=True,
+                    activation=activation_output,
+                    name='output',
+                   ))
+        
+    # My favorite optimizer
+    opt = keras.optimizers.Adam(learning_rate=lrate,
+                                amsgrad=False)
+                                
 
-    model.add(Dense(n_output, use_bias=True, name="output", activation=activation))
-    
-    # Optimizer
-    opt = keras.optimizers.Adam(learning_rate=lrate, amsgrad=False)
-    
-    # Bind the optimizer and the loss function to the model
+    # Compile the model.  Mean squared error loss
     model.compile(loss='mse', optimizer=opt)
-    
-    # Generate an ASCII representation of the architecture
-    if args.verbose >= 1:
-        print(model.summary())
 
+    # Display the network
+    if verbose >= 1:
+        print(model.summary())
+    
+    #
     return model
 
 
 def args2string(args:argparse.ArgumentParser)->str:
     '''
-    Translate the current set of arguments
+    Translate the current set of arguments into a string that can be
+    used as a file name.
     
     :param args: Command line arguments
     '''
@@ -92,17 +129,25 @@ def execute_exp(args:argparse.ArgumentParser):
     #####
 
     # Create the model
-    model = build_model(ins.shape[1], args.hidden, outs.shape[1], activation='sigmoid')
+    model = build_model(ins.shape[1], args.hidden, outs.shape[1],
+                        activation_output='sigmoid',
+                        verbose=args.verbose)
 
+    #############################################
     # Callbacks
-
-    # Stop training early if we stop making progress
-    early_stopping_cb = keras.callbacks.EarlyStopping(patience=100,
-                                                      restore_best_weights=True,
-                                                      min_delta=0.001,
-                                                      monitor='loss')
+    #  All of the callbacks are executed once per epoch
     
+    cbs = []
+    
+    # Stop training early if we stop making progress
+    early_stopping_cb = keras.callbacks.EarlyStopping(patience=args.patience,
+                                                      restore_best_weights=True,
+                                                      min_delta=0.01,
+                                                      monitor='loss')
+    cbs.append(early_stopping_cb)
 
+    
+    #############################################
     # Describe arguments
     argstring = args2string(args)
     print("EXPERIMENT: %s"%argstring)
@@ -111,28 +156,72 @@ def execute_exp(args:argparse.ArgumentParser):
     fname_output = "results/xor_results_%s.pkl"%(argstring)
 
     # Does this file already exist?
-    if os.path.exists(fname_output):
+    if not args.force and os.path.exists(fname_output):
         print("File %s already exists."%fname_output)
         return
+
+    #############################################
+    # Plot the model to a file
+    if args.render:
+        plot_model(model, to_file='results/%s_model_plot.png'%argstring, show_shapes=True, show_layer_names=True)
     
-    # Only execute if we are 'going'
-    if not args.nogo:
-        # Training
-        print("Training...")
+    #############################################
+    # WandB
+    if args.wandb:
+        # Connect to WandB
+        wandb.init(project=args.wandb_project,
+                   name=f'{args.wandb_run_label}_{args.exp:02d}',
+                   notes=argstring,
+                   config=vars(args))
+
+        if args.render:
+            # Log the architecture diagram to WandB
+            wandb.log({'architecture': wandb.Image('results/%s_model_plot.png'%argstring)})
         
-        history = model.fit(x=ins,
-                            y=outs,
-                            epochs=args.epochs,
-                            verbose=args.verbose>=2,
-                            callbacks=[early_stopping_cb]
-            )
+        # Log hostname
+        wandb.log({'hostname': socket.gethostname()})
+
+        # Create WandB callback
+        wandb_metrics_cb = wandb.keras.WandbMetricsLogger()
+        cbs.append(wandb_metrics_cb)
+
         
-        print("Done Training")
+    #############################################
+    # Training
+    print("Training...")
         
-        # Save the training history
-        with open(fname_output, "wb") as fp:
-            pickle.dump(history.history, fp)
-            pickle.dump(args, fp)
+    history = model.fit(x=ins,
+                        y=outs,
+                        epochs=args.epochs,
+                        verbose=args.verbose>=2,
+                        callbacks=cbs,
+                        )
+        
+    #############################################
+    print("Done Training")
+
+    # Accumulate the results together
+    results = {}
+    results['ins'] = ins
+    results['outs'] = outs
+    results['pred'] = model.predict(ins)
+    results['eval_train'] = model.evaluate(ins,outs)
+        
+    # Save the training history
+    with open(fname_output, "wb") as fp:
+        pickle.dump(history.history, fp)
+        pickle.dump(args, fp)
+        pickle.dump(results, fp)
+        # Could save other things
+
+    #############################################
+    # Close connection to WandB
+    if args.wandb:
+        wandb.finish()
+
+
+#####
+# Miscellaneous functions for visualizing results
 
 def display_learning_curve(fname:str):
     '''
@@ -176,21 +265,37 @@ def display_learning_curve_set(dir:str, base:str):
     plt.ylabel('MSE')
     plt.xlabel('epochs')
     plt.legend(files)
-    
+
+#####
 def create_parser()->argparse.ArgumentParser:
     '''
     Create a command line parser for the XOR experiment
     '''
-    parser = argparse.ArgumentParser(description='XOR Learner')
+    # Create the parser
+    parser = argparse.ArgumentParser(description='XOR Learner',
+                                     fromfile_prefix_chars='@')
 
+    # Experiment config
     parser.add_argument('--exp', type=int, default=0, help='Experiment number')
-    parser.add_argument('--epochs', type=int, default=100, help='Number of training epochs')
-    #parser.add_argument('--hidden', type=int, default=2, help='Number of hidden units')  # Single hidden layer
-    parser.add_argument('--hidden', nargs='+', type=int, default=[2], help='Number of hidden units')  # List of hidden layers
 
-    parser.add_argument('--gpu', action='store_true', help='Use a GPU')
+    # Training config
+    parser.add_argument('--epochs', type=int, default=100, help='Number of training epochs')
+    parser.add_argument('--patience', type=int, default=100, help='Number of epochs to wait before Early Stopping')
+    
+    parser.add_argument('--force', action='store_true', help='Execute experiment even if there is already a results file')
     parser.add_argument('--nogo', action='store_true', help='Do not perform the experiment')
     parser.add_argument('--verbose', '-v', action='count', default=0, help="Verbosity level")
+
+    # Network config
+    parser.add_argument('--hidden', nargs='+', type=int, default=[2], help='Number of hidden units')  # List of hidden layers
+
+    # Misc
+    parser.add_argument('--render', action='store_true', help='Generate a PNG of the network')
+    
+    # WandB support
+    parser.add_argument('--wandb', action='store_true', help='Turn on reporting to WandB')
+    parser.add_argument('--wandb_project', type=str, default='XOR', help='WandB project name')
+    parser.add_argument('--wandb_run_label', type=str, default='version0', help='WandB project name')
 
     return parser
 
@@ -202,6 +307,9 @@ if __name__ == "__main__":
     # Parse the command-line arguments
     parser = create_parser()
     args = parser.parse_args()
+
+    # Turn off GPUs in case they were allocated
+    tf.config.set_visible_devices([], 'GPU')
     
     # Do the work
     execute_exp(args)
