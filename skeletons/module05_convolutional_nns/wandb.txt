@@ -1,0 +1,3 @@
+--wandb
+--wandb_project=CNN_Test
+--wandb_run_label=V0

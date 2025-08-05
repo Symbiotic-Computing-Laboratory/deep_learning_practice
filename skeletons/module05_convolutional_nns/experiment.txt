@@ -1,0 +1,4 @@
+--epochs=500
+--patience=100
+--monitor=val_loss
+--min_delta=0.01

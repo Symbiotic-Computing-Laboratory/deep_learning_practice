@@ -1,45 +1,81 @@
-import tensorflow as tf
+'''
+Deep Learning Practice: Convolutional Neural Network
+
+This is the full solution: no fair peeking!
+
+Solution for module 5
+
+Andrew H. Fagg (andrewhfagg@gmail.com)
+
+'''
+import sys
+import argparse
+import copy
+import pickle
+import random
 import pandas as pd
 import numpy as np
-import os
-import fnmatch
 import matplotlib.pyplot as plt
-import argparse
-import pickle
+import tensorflow as tf
 import keras
-
-from keras import Sequential
-from keras.layers import InputLayer
-from keras.layers import Convolution2D, Dense, MaxPooling2D, GlobalMaxPooling2D, Flatten, BatchNormalization, Dropout, SpatialDropout2D
-
-import random
+import os
+import time
+import wandb
+import socket
+import matplotlib.pyplot as plt
+from matplotlib import colors
 import re
-
 import png
+import sklearn.metrics
 
 from core50 import *
 
-import sklearn.metrics
+# This is the keras 3 way of doing things
+from keras.layers import Input, Dense
+from keras.models import Sequential
+from keras.utils import plot_model
+from keras.layers import Convolution2D, Dense, MaxPooling2D, GlobalMaxPooling2D, Flatten, BatchNormalization, Dropout, SpatialDropout2D
 
-##################
-# Configure figure parameters
-
+#################################################################
+# Default plotting parameters
 FONTSIZE = 18
-FIGURE_SIZE = (10,4)
-FIGURE_SIZE2 = (10,10)
-
-plt.rcParams.update({'font.size': FONTSIZE})
-plt.rcParams['figure.figsize'] = FIGURE_SIZE
-# Default tick label size
+plt.rcParams['figure.figsize'] = (10, 6)
+plt.rcParams['font.size'] = FONTSIZE
 plt.rcParams['xtick.labelsize'] = FONTSIZE
 plt.rcParams['ytick.labelsize'] = FONTSIZE
 
+#################################################################
 
 #####
 
 
-def load_data_sets(dataset_dir:str):
-    ## File location
+def load_data_sets(dataset_dir:str)->(np.array, np.array, np.array, np.array, int):
+    '''
+    Load data sets for training/validation.
+
+    :param dataset_dir: Directory in which the core50 data set is located
+    :return: Tuple that contains the training ins/outs, validation ins/outs, and number of classes
+
+    We have hard-coded a lot here just so we can bring in a small data set to play with.
+
+    Data and Directory Organization:
+    - 10 object classes
+    - 50 different object instances o01 ... o50 (5 for each class).  o01 ... o05 are class 1, etc.
+    - For each object instance, there are 11 different background conditions
+    - For each background condition, there are 300 frames from a movie as that object is being manipulated
+
+    For this implementation, we are loading one object (o21) to serve as the positive examples and
+    another object (o41) as the negative examples.  For our training set, we will take only the
+    image indices that end in 0 (so 300/10=30 images).
+
+    For validation data, we will take every 5th image.  Again, this is 30 images for the
+    positive and negative classes.  
+
+    Note that this is a really "dumbed-down" version of an image recognition problem: we are only
+    teaching the model to distinguish o21 from o41 (not different object classes from one-another)
+    '''
+
+    ## Dataset location (we are using the 128 x 128 images)
     directory_base = '%s/core50_128x128'%dataset_dir
 
     # Training set: define which files to load for each object
@@ -65,10 +101,11 @@ def load_data_sets(dataset_dir:str):
     object_list2 = ['o41']
     ins_neg = load_multiple_image_sets_from_directories(directory_base, condition_list, object_list2, test_files)
 
-    ### Combine positives and negatives into a common data set
-    outs_pos = np.append(np.ones((ins_pos.shape[0],1)), np.zeros((ins_pos.shape[0],1)), axis=1)
-    outs_neg = np.append(np.zeros((ins_pos.shape[0],1)), np.ones((ins_pos.shape[0],1)), axis=1)
+    ### Create the labels: first set of images are 'class 1'; second set is 'class 0'
+    outs_pos = np.ones((ins_pos.shape[0],))
+    outs_neg = np.zeros((ins_neg.shape[0],))
 
+    # Combine the positive and negative examples
     ins = np.append(ins_pos, ins_neg, axis=0)
     outs = np.append(outs_pos, outs_neg, axis=0)
 
@@ -94,52 +131,78 @@ def load_data_sets(dataset_dir:str):
     # Load the negative cases
     ins_neg_validation = load_multiple_image_sets_from_directories(directory_base, condition_list, object_list2, test_files)
 
-    ### Combine positives and negatives
-    outs_pos_validation = np.append(np.ones((ins_pos_validation.shape[0], 1)), np.zeros((ins_pos_validation.shape[0], 1)), axis=1)
-    outs_neg_validation = np.append(np.zeros((ins_pos_validation.shape[0], 1)), np.ones((ins_pos_validation.shape[0], 1)), axis=1)
+    ### Create the labels
+    outs_pos_validation = np.ones((ins_pos_validation.shape[0],))
+    outs_neg_validation = np.zeros((ins_pos_validation.shape[0],))
 
+    # Combine the positives from the negatives
     ins_validation = np.append(ins_pos_validation, ins_neg_validation, axis=0)
     outs_validation = np.append(outs_pos_validation, outs_neg_validation, axis=0)
-    
-    return ins, outs, ins_validation, outs_validation
 
-def create_classifier_network(image_size, nchannels, n_classes, 
-                              learning_rate=.0001, 
-                              lambda_l2=None,                             # None or a float
-                              p_dropout=None,
-                              p_spatial_dropout=None,
-                              n_filters=  [10],
-                              kernel_size=[3],
-                              pooling=[1],
-                             n_hidden=[5]):
+    # Return the training and validation images and their labels
+    return ins, outs, ins_validation, outs_validation, 2
+
+def create_classifier_network(image_size:(int,int),
+                              nchannels:int=3,
+                              n_classes:int=2, 
+                              learning_rate:float=.0001, 
+                              lambda_l2:float=None,
+                              p_dropout:float=None,
+                              p_spatial_dropout:float=None,
+                              n_filters:[int]=  [10],
+                              kernel_size:[int]=[3],
+                              pooling:[int]=[1],
+                              n_hidden:[int]=[5],
+                              activation_internal:str='elu',
+                              activation_output:str='softmax',
+                              loss:str='sparse_categorical_crossentropy',
+                              metrics:[str]=['sparse_categorical_accuracy']):
+    
+
+    '''
+    Create the classifier CNN network.
+
+    :param image_size: 2-tuple (rows, col)
+    :param nchannels: number of image channels (typeically 3: red, green, blue)
+    :param n_classes: number of classes
+    :param learning_rate: float
+    :param lambda_l2: L2 regularization parameter
+    :param p_dropout: Dropout parameter for fully connected layers
+    :param p_spatial_dropout: Spatial dropout parameter for CNN layers
+    :param n_filters: Number of filters for each convolutional module
+    :param kernel_size: Kernel size for each convolutional module
+    :param pooling: Pooling size for each convolutional module
+    :param n_hidden: Number of hidden units in each fully connected layer
+    
+    '''
     
     if lambda_l2 is not None:
         # assume a float
-        regularizer = tf.keras.regularizers.l2(lambda_l2)
+        regularizer = keras.regularizers.l2(lambda_l2)
     else:
         regularizer = None
         
     
     model = Sequential()
-    model.add(InputLayer(shape=(image_size[0], image_size[1], nchannels)))
+    model.add(Input(shape=image_size+(nchannels,), name = 'input'))
    
-    # convolutional layers
+    # convolutional modules
     for i, (n, s, p) in enumerate(zip(n_filters, kernel_size, pooling)):
         model.add(Convolution2D(filters=n,
-                            kernel_size=s,
-                            padding='same',
-                            use_bias=True,
-                            kernel_regularizer=regularizer,
-                            name='C%d'%(i),
-                            activation='elu'))
+                                kernel_size=s,
+                                padding='same',
+                                use_bias=True,
+                                kernel_regularizer=regularizer,
+                                name='C%d'%(i),
+                                activation=activation_internal))
         
         if p_spatial_dropout is not None:
             model.add(SpatialDropout2D(p_spatial_dropout))
             
         if p > 1:
             model.add(MaxPooling2D(pool_size=p,
-                           strides=p,
-                           name='MP%d'%(i)))
+                                   strides=p,
+                                   name='MP%d'%(i)))
         
     
     # Flatten
@@ -148,7 +211,7 @@ def create_classifier_network(image_size, nchannels, n_classes,
     # Dense layers
     for i,n in enumerate(n_hidden):
         model.add(Dense(units=n,
-                    activation='elu',
+                    activation=activation_internal,
                     use_bias='True',
                     kernel_regularizer=regularizer,
                     name='D%d'%i))
@@ -158,9 +221,8 @@ def create_classifier_network(image_size, nchannels, n_classes,
     
     # Output
     model.add(Dense(units=n_classes,
-                    activation='softmax',
+                    activation=activation_output,
                     use_bias='True',
-                    kernel_regularizer=regularizer,
                     name='output'))
     
     # Optimizer
@@ -168,13 +230,14 @@ def create_classifier_network(image_size, nchannels, n_classes,
                                    amsgrad = False)
     
     # Bind the model to the optimizer
-    model.compile(loss='categorical_crossentropy',
+    model.compile(loss=loss,
                   optimizer=opt,
-                  metrics=['categorical_accuracy'])
+                  metrics=metrics)
     
     return model
 
-def create_parser():
+
+def create_parser()->argparse.ArgumentParser:
     '''
     Create argument parser
     '''
@@ -182,17 +245,22 @@ def create_parser():
     parser = argparse.ArgumentParser(description='CNN', fromfile_prefix_chars='@')
 
     # High-level commands
+    parser.add_argument('--force', action='store_true', help='Execute experiment even if there is already a results file')
     parser.add_argument('--nogo', action='store_true', help='Do not perform the experiment')
+    parser.add_argument('--save_model', action='store_true', help='Save the trained model')
     parser.add_argument('--verbose', '-v', action='count', default=0, help="Verbosity level")
     
     # Training Parameters
     parser.add_argument('--lrate', type=float, default=0.0001, help="Learning rate")
     parser.add_argument('--epochs', type=int, default=100, help="Number of training epochs")
+    parser.add_argument('--patience', type=int, default=100, help='Number of epochs to wait before Early Stopping')
+    parser.add_argument('--monitor', type=str, default='loss', help="Monitor variable for Early Stopping")
+    parser.add_argument('--min_delta', type=float, default=0.01, help="Minimum delta for Early Stopping")
     
     # Network Parameters
     parser.add_argument('--dropout', type=float, default=None, help="Dropout rate")
     parser.add_argument('--spatial_dropout', type=float, default=None, help="Spatial dropout rate")
-    parser.add_argument('--l2', '--lambda_l2', type=float, default=None, help="L2 Regularization")
+    parser.add_argument('--lambda_l2', '--l2', type=float, default=None, help="L2 Regularization")
     parser.add_argument('--n_hidden', nargs='+', type=int, default=[5], help="Dense layer sizes")
     parser.add_argument('--n_filters', nargs='+', type=int, default=[10], help="Number of Conv filters")
     parser.add_argument('--kernel_sizes', nargs='+', type=int, default=[3], help="Kernel sizes")
@@ -200,23 +268,34 @@ def create_parser():
 
     # Dataset
     parser.add_argument('--dataset', type=str, default='/home/fagg/datasets/core50', help="Learning rate")
-    
+
+    # Misc
+    parser.add_argument('--render', action='store_true', help='Generate a PNG of the network')
+
+    # WandB support                                                                                                                   
+    parser.add_argument('--wandb', action='store_true', help='Turn on reporting to WandB')
+    parser.add_argument('--wandb_project', type=str, default='XOR', help='WandB project name')
+    parser.add_argument('--wandb_run_label', type=str, default='version0', help='WandB project name')
+
     return parser
 
 
-def generate_fname(args):
-    strng = 'results'
+def generate_fname(args:argparse.ArgumentParser)->str:
+    '''
+    Translate the parsed args into a file name that describes the specific experiment
+    '''
+    strng = 'cnn'
     
-    strng = strng + '_LR_%f'%(args.lrate)
+    #strng = strng + '_LR_%f'%(args.lrate)
     
     if args.dropout is not None:
-        strng = strng + '_DR_%.1f'%(args.dropout)
+        strng = strng + '_DR_%.2f'%(args.dropout)
         
     if args.spatial_dropout is not None:
-        strng = strng + '_SDR_%.1f'%(args.spatial_dropout)
+        strng = strng + '_SDR_%.2f'%(args.spatial_dropout)
     
-    if args.l2 is not None:
-        strng = strng + '_L2_%f'%(args.l2)
+    if args.lambda_l2 is not None:
+        strng = strng + '_L2_%f'%(args.lambda_l2)
         
     strng = strng + '_filters_' + '_'.join(str(n) for n in args.n_filters)
     
@@ -227,66 +306,131 @@ def generate_fname(args):
     strng = strng + '_hidden_' + '_'.join(str(n) for n in args.n_hidden)
     
     return strng
+
     
-def execute_exp(args):
-    ins, outs, ins_validation, outs_validation = load_data_sets(args.dataset)
-    
+def execute_exp(args:argparse.ArgumentParser):
+    '''
+    Do all of the work
+    '''
+    # Load the data
+    ins, outs, ins_validation, outs_validation, n_classes = load_data_sets(args.dataset)
+
+    # Create the model
     model = create_classifier_network((ins.shape[1], ins.shape[2]), 
-                                      ins.shape[3], 2, 
-                                  learning_rate=args.lrate,
-                                  p_spatial_dropout=args.spatial_dropout,
-                                  p_dropout=args.dropout,
-                                  lambda_l2=args.l2,
-                                  n_filters=args.n_filters,
-                                  kernel_size=args.kernel_sizes,
-                                  pooling=args.pooling,
-                                  n_hidden=args.n_hidden)
+                                      ins.shape[3],
+                                      n_classes, 
+                                      learning_rate=args.lrate,
+                                      p_spatial_dropout=args.spatial_dropout,
+                                      p_dropout=args.dropout,
+                                      lambda_l2=args.lambda_l2,
+                                      n_filters=args.n_filters,
+                                      kernel_size=args.kernel_sizes,
+                                      pooling=args.pooling,
+                                      n_hidden=args.n_hidden)
     
     if args.verbose > 0:
         print(model.summary())
-        
+
+    # Results pickle file name
+    fbase = generate_fname(args)
+    results_fname = '%s_results.pkl'%(fbase)
+
+    # Does this file already exist?
+    if not args.force and os.path.exists(results_fname):
+        print("File %s already exists."%results_fname)
+        return
+
     if args.nogo:
         # Stop execution
         print("No execution")
         return
+        
+    #############################################
+    # Plot the model to a file
+    if args.render:
+        plot_model(model, to_file='results/%s_model_plot.png'%fbase, show_shapes=True, show_layer_names=True)
     
     # Callbacks
-    early_stopping_cb = keras.callbacks.EarlyStopping(patience=10,
-                                                  restore_best_weights=True,
-                                                      min_delta=0.01)
+    cbs = []
+    early_stopping_cb = keras.callbacks.EarlyStopping(patience=args.patience,
+                                                      restore_best_weights=True,
+                                                      min_delta=args.min_delta,
+                                                      monitor=args.monitor)
+    cbs.append(early_stopping_cb)
 
+    #############################################
+    # WandB
+    
+    if args.wandb:
+        # Connect to WandB
+        wandb.init(project=args.wandb_project,
+                   name=f'{args.wandb_run_label}',
+                   notes=fbase,
+                   config=vars(args))
+
+        if args.render:
+            # Log the architecture diagram to WandB
+            wandb.log({'architecture': wandb.Image('results/%s_model_plot.png'%fbase)})
+
+        # Log hostname
+        wandb.log({'hostname': socket.gethostname()})
+
+        # Create WandB callback
+        wandb_metrics_cb = wandb.keras.WandbMetricsLogger()
+        cbs.append(wandb_metrics_cb)
+
+    #################################
     # Training
     history = model.fit(x=ins, y=outs, epochs=args.epochs, 
-                        verbose=(args.verbose > 1),
+                        verbose=(args.verbose >= 3),
                         validation_data=(ins_validation, outs_validation), 
-                        callbacks=[early_stopping_cb])
+                        callbacks=cbs)
     
+    #################################
     # Generate results data
     results = {}
     results['args'] = args
     results['predict_validation'] = model.predict(ins_validation)
-    #results['predict_validation_eval'] = model.evaluate(ins_validation)
+    results['predict_validation_eval'] = model.evaluate(ins_validation, outs_validation)
+
+    if args.verbose >= 2:
+        # Report the prediction for the validation set
+        
+        # Shape (N,) -> (N,1)
+        outs_validation_expanded = np.expand_dims(outs_validation, axis=-1)
+        
+        # Combine trues, predicted class and predicted probabilities
+        mat = np.concatenate([outs_validation_expanded,
+                              np.argmax(results['predict_validation'], axis=-1, keepdims=True),
+                              results['predict_validation']], axis=1) 
+
+        print(mat)
         
     results['predict_training'] = model.predict(ins)
-    #results['predict_training_eval'] = model.evaluate(ins)
+    results['predict_training_eval'] = model.evaluate(ins, outs)
     results['history'] = history.history
 
+    #############################################
+    # Close connection to WandB
+    if args.wandb:
+        wandb.finish()
+
+    ############################################
     # Save results
-    fbase = generate_fname(args)
-    
     results['fname_base'] = fbase
-    with open("%s_results.pkl"%(fbase), "wb") as fp:
+    with open(results_fname, "wb") as fp:
         pickle.dump(results, fp)
     
     # Save model
-    #if args.save_model:
-    model.save("%s_model.keras"%(fbase))
+    if args.save_model:
+        model.save("results/%s_model.keras"%(fbase))
 
     print(fbase)
     
 if __name__ == "__main__":
     # Turn off GPU
     os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+    
     # Parse incoming arguments
     parser = create_parser()
     args = parser.parse_args()
