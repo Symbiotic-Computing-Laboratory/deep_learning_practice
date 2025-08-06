@@ -28,6 +28,7 @@ import re
 import png
 import sklearn.metrics
 
+# Data loader for the core 50 dataset
 from core50 import *
 
 # This is the keras 3 way of doing things
@@ -58,21 +59,26 @@ def load_data_sets(dataset_dir:str)->(np.array, np.array, np.array, np.array, in
 
     We have hard-coded a lot here just so we can bring in a small data set to play with.
 
+    Data reference: https://vlomonaco.github.io/core50/
+
     Data and Directory Organization:
     - 10 object classes
     - 50 different object instances o01 ... o50 (5 for each class).  o01 ... o05 are class 1, etc.
     - For each object instance, there are 11 different background conditions
     - For each background condition, there are 300 frames from a movie as that object is being manipulated
 
-    For this implementation, we are loading one object (o21) to serve as the positive examples and
-    another object (o41) as the negative examples.  For our training set, we will take only the
+    For this implementation, we are loading one object (o21; a can) to serve as the positive examples and
+    another object (o41; a cup) as the negative examples.  For our training set, we will take only the
     image indices that end in 0 (so 300/10=30 images).
 
-    For validation data, we will take every 5th image.  Again, this is 30 images for the
-    positive and negative classes.  
+    For validation data, we will take images ending in '5' for objects o22 (can, positive) and
+    o42 (cup, negative).
 
-    Note that this is a really "dumbed-down" version of an image recognition problem: we are only
-    teaching the model to distinguish o21 from o41 (not different object classes from one-another)
+    Note that this is a really "dumbed-down" version of an image recognition problem: we are not training a model
+    that can distinguish between all cans and cups.
+
+    One can edit this function to work with a much larger set of objects and conditions
+    (not ideal for general implementations, but will serve our purposes).
     '''
 
     ## Dataset location (we are using the 128 x 128 images)
@@ -173,17 +179,23 @@ def create_classifier_network(image_size:(int,int),
     :param kernel_size: Kernel size for each convolutional module
     :param pooling: Pooling size for each convolutional module
     :param n_hidden: Number of hidden units in each fully connected layer
+    :activation_internal: Activation function used for all internal layers
+    :activation_output: Activation function used for output layer
+    :loss: Loss function
+    :metrics: List of metrics to measure performance against
     
     '''
     
+    # L2 Regularization support
     if lambda_l2 is not None:
         # assume a float
         regularizer = keras.regularizers.l2(lambda_l2)
     else:
         regularizer = None
         
-    
+    # Construct the model
     model = Sequential()
+    
     model.add(Input(shape=image_size+(nchannels,), name = 'input'))
    
     # convolutional modules
@@ -283,11 +295,12 @@ def create_parser()->argparse.ArgumentParser:
 def generate_fname(args:argparse.ArgumentParser)->str:
     '''
     Translate the parsed args into a file name that describes the specific experiment
+
+    :param args: Argument object from the parser
+    :return: String that describes this experiment
     '''
     strng = 'cnn'
-    
-    #strng = strng + '_LR_%f'%(args.lrate)
-    
+
     if args.dropout is not None:
         strng = strng + '_DR_%.2f'%(args.dropout)
         
@@ -311,7 +324,9 @@ def generate_fname(args:argparse.ArgumentParser)->str:
 def execute_exp(args:argparse.ArgumentParser):
     '''
     Do all of the work
+    :param args: Argument data structure
     '''
+
     # Load the data
     ins, outs, ins_validation, outs_validation, n_classes = load_data_sets(args.dataset)
 
@@ -327,13 +342,14 @@ def execute_exp(args:argparse.ArgumentParser):
                                       kernel_size=args.kernel_sizes,
                                       pooling=args.pooling,
                                       n_hidden=args.n_hidden)
-    
+
+    # Optionally print the model summary
     if args.verbose > 0:
         print(model.summary())
 
     # Results pickle file name
     fbase = generate_fname(args)
-    results_fname = '%s_results.pkl'%(fbase)
+    results_fname = 'results/%s_results.pkl'%(fbase)
 
     # Does this file already exist?
     if not args.force and os.path.exists(results_fname):
@@ -389,30 +405,43 @@ def execute_exp(args:argparse.ArgumentParser):
     #################################
     # Generate results data
     results = {}
+    wandb_results = {}
+
     results['args'] = args
     results['predict_validation'] = model.predict(ins_validation)
     results['predict_validation_eval'] = model.evaluate(ins_validation, outs_validation)
+    
+    wandb_results['final_val_loss'] = results['predict_validation_eval'][0]
+    wandb_results['final_val_accuracy'] = results['predict_validation_eval'][1]
 
     if args.verbose >= 2:
         # Report the prediction for the validation set
-        
-        # Shape (N,) -> (N,1)
-        outs_validation_expanded = np.expand_dims(outs_validation, axis=-1)
-        
-        # Combine trues, predicted class and predicted probabilities
-        mat = np.concatenate([outs_validation_expanded,
-                              np.argmax(results['predict_validation'], axis=-1, keepdims=True),
-                              results['predict_validation']], axis=1) 
 
-        print(mat)
+        # Probabilities
+        probs = results['predict_validation']
+        # Predicted class is the class with the highest probability
+        preds = np.argmax(probs, axis=-1)
+        # Loop over the examples: report true, prediction, and probabilities
+        print("Ground Truth\tPrediction\tProbabilities")
+        for i in range(outs_validation.shape[0]):
+            print(f'{int(outs_validation[i]):d}\t\t{int(preds[i]):d}\t\t{probs[i,0]:.3f}\t{probs[i,1]:.3f}')
+            
+            
         
     results['predict_training'] = model.predict(ins)
     results['predict_training_eval'] = model.evaluate(ins, outs)
+    wandb_results['final_training_loss'] = results['predict_training_eval'][0]
+    wandb_results['final_training_accuracy'] = results['predict_training_eval'][1]
+
+    
     results['history'] = history.history
 
     #############################################
-    # Close connection to WandB
     if args.wandb:
+        # Write final performance measures 
+        wandb.log(wandb_results)
+
+        # Close connection to WandB
         wandb.finish()
 
     ############################################
@@ -425,8 +454,6 @@ def execute_exp(args:argparse.ArgumentParser):
     if args.save_model:
         model.save("results/%s_model.keras"%(fbase))
 
-    print(fbase)
-    
 if __name__ == "__main__":
     # Turn off GPU
     os.environ['CUDA_VISIBLE_DEVICES'] = '-1'

@@ -3,6 +3,13 @@ Basic PNG image loading support, with translation to numpy arrays.
 
 Andrew H. Fagg
 
+
+Files are organized as:
+/BASE_DIRECTORY/CONDITION/OBJECT_ID/IMAGE_ddd.png
+where:
+- CONDITION is s1 ... s11
+- OBJECT_ID is o1 ... o50
+- ddd is 0 ... 299
 '''
 
 # From pypng
@@ -17,13 +24,13 @@ def readPngFile(filename:str)->np.array:
     '''
     Read a single PNG file
     
-    :param filename: fully qualified file name
+    :param filename: fully qualified file name to load
     
     :return: 3D numpy array.  Shape = (rows x cols x chans)
     
     Note: all pixel values are floats in the range 0.0 .. 1.0
     
-    This implementation relies on the pypng package
+    This implementation relies on the pypng package (there are better ways)
     '''
     # Load in the image meta-data
     r = png.Reader(filename)
@@ -42,9 +49,9 @@ def read_images_from_directory(directory:str, file_regexp:str)->np.array:
     '''
     Read a set of images from a directory.  All of the images must be the same shape
     
-    :param directory: Directory to search
-    :param file_regexp: a regular expression to match the file names against
-    :return: 4D numpy array.  shape: (images x rows x cols x chans)
+    :param directory: Directory to search (/BASE_DIRECTORY/CONDITION/OBJECT_ID/)
+    :param file_regexp: a regular expression to match the file names against (IMAGE_ddd.png)
+    :return: 4D numpy array.  shape: (images, rows, cols, 3)
     '''
     
     print(directory, file_regexp)
@@ -62,9 +69,9 @@ def read_image_set_from_directories(directory:str, spec:str)->np.array:
     '''
     Read a set of images from a set of directories
     
-    :param directory: base directory to read from
-    :param spec: n-array of tuples of subdirs and file regexps
-    :return: 4D numpy array.  Shape: (images, rows, cols, chans)
+    :param directory: base directory to read from (/BASE_DIRECTORY/CONDITION)
+    :param spec: n-array of tuples of subdirectories and file regexps (OBJECT_ID, IMAGE_ddd.png)
+    :return: 4D numpy array.  Shape: (images, rows, cols, 3)
     
     '''
     # First tuple
@@ -80,8 +87,15 @@ def read_image_set_from_directories(directory:str, spec:str)->np.array:
 
 def load_multiple_image_sets_from_directories(directory_base, directory_list, object_list, test_files):
     '''
+    Read a set of images from a set of directories 
+    
+    :param directory_base: base directory to read from (/BASE_DIRECTORY)
+    :param directory_list: subdirectory (CONDITION)
+    :param spec: n-array of tuples of subdirectories and file regexps (OBJECT_ID, IMAGE_ddd.png)
+    :return: 4D numpy array.  Shape: (images, rows, cols, 3)
     
     '''
+
     print("##################")
     # Create the list of object/image specs
     inputs = [[obj, test_files] for obj in object_list]
@@ -89,7 +103,7 @@ def load_multiple_image_sets_from_directories(directory_base, directory_list, ob
     # First directory
     ret = read_image_set_from_directories(directory_base + "/" + directory_list[0], inputs)
     
-    # Loop over directories
+    # Loop over the rest of the directories
     for directory in directory_list[1:]:
         ret = np.append(ret,
                         read_image_set_from_directories(directory_base + "/" + directory, inputs),
