@@ -1,0 +1,1428 @@
+%!PS-Adobe-3.0
+%%BoundingBox: 18 36 577 806
+%%Title: Enscript Output
+%%Creator: GNU Enscript 1.6.5.90
+%%CreationDate: Tue Aug  5 22:15:50 2025
+%%Orientation: Landscape
+%%Pages: (atend)
+%%DocumentMedia: A4 595 842 0 () ()
+%%DocumentNeededResources: (atend)
+%%EndComments
+%%BeginProlog
+%%BeginResource: procset Enscript-Prolog 1.6.5 90
+%
+% Procedures.
+%
+
+/_S {	% save current state
+  /_s save def
+} def
+/_R {	% restore from saved state
+  _s restore
+} def
+
+/S {	% showpage protecting gstate
+  gsave
+  showpage
+  grestore
+} bind def
+
+/MF {	% fontname newfontname -> -	make a new encoded font
+  /newfontname exch def
+  /fontname exch def
+
+  /fontdict fontname findfont def
+  /newfont fontdict maxlength dict def
+
+  fontdict {
+    exch
+    dup /FID eq {
+      % skip FID pair
+      pop pop
+    } {
+      % copy to the new font dictionary
+      exch newfont 3 1 roll put
+    } ifelse
+  } forall
+
+  newfont /FontName newfontname put
+
+  % insert only valid encoding vectors
+  encoding_vector length 256 eq {
+    newfont /Encoding encoding_vector put
+  } if
+
+  newfontname newfont definefont pop
+} def
+
+/MF_PS { % fontname newfontname -> -	make a new font preserving its enc
+  /newfontname exch def
+  /fontname exch def
+
+  /fontdict fontname findfont def
+  /newfont fontdict maxlength dict def
+
+  fontdict {
+    exch
+    dup /FID eq {
+      % skip FID pair
+      pop pop
+    } {
+      % copy to the new font dictionary
+      exch newfont 3 1 roll put
+    } ifelse
+  } forall
+
+  newfont /FontName newfontname put
+
+  newfontname newfont definefont pop
+} def
+
+/SF { % fontname width height -> -	set a new font
+  /height exch def
+  /width exch def
+
+  findfont
+  [width 0 0 height 0 0] makefont setfont
+} def
+
+/SUF { % fontname width height -> -	set a new user font
+  /height exch def
+  /width exch def
+
+  /F-gs-user-font MF
+  /F-gs-user-font width height SF
+} def
+
+/SUF_PS { % fontname width height -> -	set a new user font preserving its enc
+  /height exch def
+  /width exch def
+
+  /F-gs-user-font MF_PS
+  /F-gs-user-font width height SF
+} def
+
+/M {moveto} bind def
+/s {show} bind def
+
+/Box {	% x y w h -> -			define box path
+  /d_h exch def /d_w exch def /d_y exch def /d_x exch def
+  d_x d_y  moveto
+  d_w 0 rlineto
+  0 d_h rlineto
+  d_w neg 0 rlineto
+  closepath
+} def
+
+/bgs {	% x y height blskip gray str -> -	show string with bg color
+  /str exch def
+  /gray exch def
+  /blskip exch def
+  /height exch def
+  /y exch def
+  /x exch def
+
+  gsave
+    x y blskip sub str stringwidth pop height Box
+    gray setgray
+    fill
+  grestore
+  x y M str s
+} def
+
+/bgcs { % x y height blskip red green blue str -> -  show string with bg color
+  /str exch def
+  /blue exch def
+  /green exch def
+  /red exch def
+  /blskip exch def
+  /height exch def
+  /y exch def
+  /x exch def
+
+  gsave
+    x y blskip sub str stringwidth pop height Box
+    red green blue setrgbcolor
+    fill
+  grestore
+  x y M str s
+} def
+
+% Highlight bars.
+/highlight_bars {	% nlines lineheight output_y_margin gray -> -
+  gsave
+    setgray
+    /ymarg exch def
+    /lineheight exch def
+    /nlines exch def
+
+    % This 2 is just a magic number to sync highlight lines to text.
+    0 d_header_y ymarg sub 2 sub translate
+
+    /cw d_output_w cols div def
+    /nrows d_output_h ymarg 2 mul sub lineheight div cvi def
+
+    % for each column
+    0 1 cols 1 sub {
+      cw mul /xp exch def
+
+      % for each rows
+      0 1 nrows 1 sub {
+        /rn exch def
+        rn lineheight mul neg /yp exch def
+        rn nlines idiv 2 mod 0 eq {
+	  % Draw highlight bar.  4 is just a magic indentation.
+	  xp 4 add yp cw 8 sub lineheight neg Box fill
+	} if
+      } for
+    } for
+
+  grestore
+} def
+
+% Line highlight bar.
+/line_highlight {	% x y width height gray -> -
+  gsave
+    /gray exch def
+    Box gray setgray fill
+  grestore
+} def
+
+% Column separator lines.
+/column_lines {
+  gsave
+    .1 setlinewidth
+    0 d_footer_h translate
+    /cw d_output_w cols div def
+    1 1 cols 1 sub {
+      cw mul 0 moveto
+      0 d_output_h rlineto stroke
+    } for
+  grestore
+} def
+
+% Column borders.
+/column_borders {
+  gsave
+    .1 setlinewidth
+    0 d_footer_h moveto
+    0 d_output_h rlineto
+    d_output_w 0 rlineto
+    0 d_output_h neg rlineto
+    closepath stroke
+  grestore
+} def
+
+% Do the actual underlay drawing
+/draw_underlay {
+  ul_style 0 eq {
+    ul_str true charpath stroke
+  } {
+    ul_str show
+  } ifelse
+} def
+
+% Underlay
+/underlay {	% - -> -
+  gsave
+    0 d_page_h translate
+    d_page_h neg d_page_w atan rotate
+
+    ul_gray setgray
+    ul_font setfont
+    /dw d_page_h dup mul d_page_w dup mul add sqrt def
+    ul_str stringwidth pop dw exch sub 2 div ul_h_ptsize -2 div moveto
+    draw_underlay
+  grestore
+} def
+
+/user_underlay {	% - -> -
+  gsave
+    ul_x ul_y translate
+    ul_angle rotate
+    ul_gray setgray
+    ul_font setfont
+    0 0 ul_h_ptsize 2 div sub moveto
+    draw_underlay
+  grestore
+} def
+
+% Page prefeed
+/page_prefeed {		% bool -> -
+  statusdict /prefeed known {
+    statusdict exch /prefeed exch put
+  } {
+    pop
+  } ifelse
+} def
+
+% Wrapped line markers
+/wrapped_line_mark {	% x y charwith charheight type -> -
+  /type exch def
+  /h exch def
+  /w exch def
+  /y exch def
+  /x exch def
+
+  type 2 eq {
+    % Black boxes (like TeX does)
+    gsave
+      0 setlinewidth
+      x w 4 div add y M
+      0 h rlineto w 2 div 0 rlineto 0 h neg rlineto
+      closepath fill
+    grestore
+  } {
+    type 3 eq {
+      % Small arrows
+      gsave
+        .2 setlinewidth
+        x w 2 div add y h 2 div add M
+        w 4 div 0 rlineto
+        x w 4 div add y lineto stroke
+
+        x w 4 div add w 8 div add y h 4 div add M
+        x w 4 div add y lineto
+	w 4 div h 8 div rlineto stroke
+      grestore
+    } {
+      % do nothing
+    } ifelse
+  } ifelse
+} def
+
+% EPSF import.
+
+/BeginEPSF {
+  /b4_Inc_state save def    		% Save state for cleanup
+  /dict_count countdictstack def	% Count objects on dict stack
+  /op_count count 1 sub def		% Count objects on operand stack
+  userdict begin
+  /showpage { } def
+  0 setgray 0 setlinecap
+  1 setlinewidth 0 setlinejoin
+  10 setmiterlimit [ ] 0 setdash newpath
+  /languagelevel where {
+    pop languagelevel
+    1 ne {
+      false setstrokeadjust false setoverprint
+    } if
+  } if
+} bind def
+
+/EndEPSF {
+  count op_count sub { pos } repeat	% Clean up stacks
+  countdictstack dict_count sub { end } repeat
+  b4_Inc_state restore
+} bind def
+
+% Check PostScript language level.
+/languagelevel where {
+  pop /gs_languagelevel languagelevel def
+} {
+  /gs_languagelevel 1 def
+} ifelse
+%%EndResource
+%%BeginResource: procset Enscript-Encoding-88591 1.6.5 90
+/encoding_vector [
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/space        	/exclam       	/quotedbl     	/numbersign   	
+/dollar       	/percent      	/ampersand    	/quoteright   	
+/parenleft    	/parenright   	/asterisk     	/plus         	
+/comma        	/hyphen       	/period       	/slash        	
+/zero         	/one          	/two          	/three        	
+/four         	/five         	/six          	/seven        	
+/eight        	/nine         	/colon        	/semicolon    	
+/less         	/equal        	/greater      	/question     	
+/at           	/A            	/B            	/C            	
+/D            	/E            	/F            	/G            	
+/H            	/I            	/J            	/K            	
+/L            	/M            	/N            	/O            	
+/P            	/Q            	/R            	/S            	
+/T            	/U            	/V            	/W            	
+/X            	/Y            	/Z            	/bracketleft  	
+/backslash    	/bracketright 	/asciicircum  	/underscore   	
+/quoteleft    	/a            	/b            	/c            	
+/d            	/e            	/f            	/g            	
+/h            	/i            	/j            	/k            	
+/l            	/m            	/n            	/o            	
+/p            	/q            	/r            	/s            	
+/t            	/u            	/v            	/w            	
+/x            	/y            	/z            	/braceleft    	
+/bar          	/braceright   	/tilde        	/.notdef      	
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/space        	/exclamdown   	/cent         	/sterling     	
+/currency     	/yen          	/brokenbar    	/section      	
+/dieresis     	/copyright    	/ordfeminine  	/guillemotleft	
+/logicalnot   	/hyphen       	/registered   	/macron       	
+/degree       	/plusminus    	/twosuperior  	/threesuperior	
+/acute        	/mu           	/paragraph    	/bullet       	
+/cedilla      	/onesuperior  	/ordmasculine 	/guillemotright	
+/onequarter   	/onehalf      	/threequarters	/questiondown 	
+/Agrave       	/Aacute       	/Acircumflex  	/Atilde       	
+/Adieresis    	/Aring        	/AE           	/Ccedilla     	
+/Egrave       	/Eacute       	/Ecircumflex  	/Edieresis    	
+/Igrave       	/Iacute       	/Icircumflex  	/Idieresis    	
+/Eth          	/Ntilde       	/Ograve       	/Oacute       	
+/Ocircumflex  	/Otilde       	/Odieresis    	/multiply     	
+/Oslash       	/Ugrave       	/Uacute       	/Ucircumflex  	
+/Udieresis    	/Yacute       	/Thorn        	/germandbls   	
+/agrave       	/aacute       	/acircumflex  	/atilde       	
+/adieresis    	/aring        	/ae           	/ccedilla     	
+/egrave       	/eacute       	/ecircumflex  	/edieresis    	
+/igrave       	/iacute       	/icircumflex  	/idieresis    	
+/eth          	/ntilde       	/ograve       	/oacute       	
+/ocircumflex  	/otilde       	/odieresis    	/divide       	
+/oslash       	/ugrave       	/uacute       	/ucircumflex  	
+/udieresis    	/yacute       	/thorn        	/ydieresis    	
+] def
+%%EndResource
+%%EndProlog
+%%BeginSetup
+%%IncludeResource: font Courier-Bold
+%%IncludeResource: font Courier
+/HFpt_w 10 def
+/HFpt_h 10 def
+/Courier-Bold /HF-gs-font MF
+/HF /HF-gs-font findfont [HFpt_w 0 0 HFpt_h 0 0] makefont def
+/Courier /F-gs-font MF
+/F-gs-font 10 10 SF
+/#copies 1 def
+% Pagedevice definitions:
+gs_languagelevel 1 gt {
+  <<
+    /PageSize [595 842] 
+  >> setpagedevice
+} if
+%%BeginResource: procset Enscript-Header-simple 1.6.5 90
+
+/do_header {	% print default simple header
+  gsave
+    d_header_x d_header_y HFpt_h 3 div add translate
+
+    HF setfont
+    user_header_p {
+      5 0 moveto user_header_left_str show
+
+      d_header_w user_header_center_str stringwidth pop sub 2 div
+      0 moveto user_header_center_str show
+
+      d_header_w user_header_right_str stringwidth pop sub 5 sub
+      0 moveto user_header_right_str show
+    } {
+      5 0 moveto fname show
+      45 0 rmoveto fmodstr show
+      45 0 rmoveto pagenumstr show
+    } ifelse
+
+  grestore
+} def
+%%EndResource
+/d_page_w 770 def
+/d_page_h 559 def
+/d_header_x 0 def
+/d_header_y 544 def
+/d_header_w 770 def
+/d_header_h 15 def
+/d_footer_x 0 def
+/d_footer_y 0 def
+/d_footer_w 770 def
+/d_footer_h 0 def
+/d_output_w 770 def
+/d_output_h 544 def
+/cols 1 def
+%%EndSetup
+%%Page: (1) 1
+%%BeginPageSetup
+_S
+90 rotate
+36 -577 translate
+/pagenum 1 def
+/fname (cnn_classifier_solution.py) def
+/fdir (.) def
+/ftail (cnn_classifier_solution.py) def
+% User defined strings:
+/fmodstr (Tue Aug 05 22:15:14 2025) def
+/pagenumstr (1) def
+/user_header_p false def
+/user_footer_p false def
+%%EndPageSetup
+do_header
+5 531 M
+(''') s
+5 520 M
+(Deep Learning Practice: Convolutional Neural Network) s
+5 498 M
+(This is the full solution: no fair peeking!) s
+5 476 M
+(Solution for module 5) s
+5 454 M
+(Andrew H. Fagg \(andrewhfagg@gmail.com\)) s
+5 432 M
+(''') s
+5 421 M
+(import sys) s
+5 410 M
+(import argparse) s
+5 399 M
+(import copy) s
+5 388 M
+(import pickle) s
+5 377 M
+(import random) s
+5 366 M
+(import pandas as pd) s
+5 355 M
+(import numpy as np) s
+5 344 M
+(import matplotlib.pyplot as plt) s
+5 333 M
+(import tensorflow as tf) s
+5 322 M
+(import keras) s
+5 311 M
+(import os) s
+5 300 M
+(import time) s
+5 289 M
+(import wandb) s
+5 278 M
+(import socket) s
+5 267 M
+(import matplotlib.pyplot as plt) s
+5 256 M
+(from matplotlib import colors) s
+5 245 M
+(import re) s
+5 234 M
+(import png) s
+5 223 M
+(import sklearn.metrics) s
+5 201 M
+(# Data loader for the core 50 dataset) s
+5 190 M
+(from core50 import *) s
+5 168 M
+(# This is the keras 3 way of doing things) s
+5 157 M
+(from keras.layers import Input, Dense) s
+5 146 M
+(from keras.models import Sequential) s
+5 135 M
+(from keras.utils import plot_model) s
+5 124 M
+(from keras.layers import Convolution2D, Dense, MaxPooling2D, GlobalMaxPooling2D, Flatten, BatchNormalization, Dropout, Spatial) s
+5 113 M
+(Dropout2D) s
+5 91 M
+(#################################################################) s
+5 80 M
+(# Default plotting parameters) s
+5 69 M
+(FONTSIZE = 18) s
+5 58 M
+(plt.rcParams['figure.figsize'] = \(10, 6\)) s
+5 47 M
+(plt.rcParams['font.size'] = FONTSIZE) s
+5 36 M
+(plt.rcParams['xtick.labelsize'] = FONTSIZE) s
+5 25 M
+(plt.rcParams['ytick.labelsize'] = FONTSIZE) s
+5 3 M
+(#################################################################) s
+_R
+S
+%%Page: (2) 2
+%%BeginPageSetup
+_S
+90 rotate
+36 -577 translate
+/pagenum 2 def
+/fname (cnn_classifier_solution.py) def
+/fdir (.) def
+/ftail (cnn_classifier_solution.py) def
+% User defined strings:
+/fmodstr (Tue Aug 05 22:15:14 2025) def
+/pagenumstr (2) def
+/user_header_p false def
+/user_footer_p false def
+%%EndPageSetup
+do_header
+5 520 M
+(#####) s
+5 487 M
+(def load_data_sets\(dataset_dir:str\)->\(np.array, np.array, np.array, np.array, int\):) s
+5 476 M
+(    ''') s
+5 465 M
+(    Load data sets for training/validation.) s
+5 443 M
+(    :param dataset_dir: Directory in which the core50 data set is located) s
+5 432 M
+(    :return: Tuple that contains the training ins/outs, validation ins/outs, and number of classes) s
+5 410 M
+(    We have hard-coded a lot here just so we can bring in a small data set to play with.) s
+5 388 M
+(    Data reference: https://vlomonaco.github.io/core50/) s
+5 366 M
+(    Data and Directory Organization:) s
+5 355 M
+(    - 10 object classes) s
+5 344 M
+(    - 50 different object instances o01 ... o50 \(5 for each class\).  o01 ... o05 are class 1, etc.) s
+5 333 M
+(    - For each object instance, there are 11 different background conditions) s
+5 322 M
+(    - For each background condition, there are 300 frames from a movie as that object is being manipulated) s
+5 300 M
+(    For this implementation, we are loading one object \(o21; a can\) to serve as the positive examples and) s
+5 289 M
+(    another object \(o41; a cup\) as the negative examples.  For our training set, we will take only the) s
+5 278 M
+(    image indices that end in 0 \(so 300/10=30 images\).) s
+5 256 M
+(    For validation data, we will take images ending in '5' for objects o22 \(can, positive\) and) s
+5 245 M
+(    o42 \(cup, negative\).) s
+5 223 M
+(    Note that this is a really "dumbed-down" version of an image recognition problem: we are not training a model) s
+5 212 M
+(    that can distinguish between all cans and cups.) s
+5 190 M
+(    One can edit this function to work with a much larger set of objects and conditions) s
+5 179 M
+(    \(not ideal for general implementations, but will serve our purposes\).) s
+5 168 M
+(    ''') s
+5 146 M
+(    ## Dataset location \(we are using the 128 x 128 images\)) s
+5 135 M
+(    directory_base = '%s/core50_128x128'%dataset_dir) s
+5 113 M
+(    # Training set: define which files to load for each object) s
+5 102 M
+(    #test_files = '.*[05].png') s
+5 91 M
+(    test_files = '.*[0].png') s
+5 69 M
+(    ### Positive cases) s
+5 58 M
+(    # Define which objects to load) s
+5 47 M
+(    #object_list = ['o25', 'o22', 'o23', 'o24']) s
+5 36 M
+(    object_list = ['o21']) s
+5 14 M
+(    # Define which conditions to load) s
+5 3 M
+(    #condition_list = ['s1', 's2', 's3', 's4', 's5', 's7', 's8', 's9', 's10', 's11']) s
+_R
+S
+%%Page: (3) 3
+%%BeginPageSetup
+_S
+90 rotate
+36 -577 translate
+/pagenum 3 def
+/fname (cnn_classifier_solution.py) def
+/fdir (.) def
+/ftail (cnn_classifier_solution.py) def
+% User defined strings:
+/fmodstr (Tue Aug 05 22:15:14 2025) def
+/pagenumstr (3) def
+/user_header_p false def
+/user_footer_p false def
+%%EndPageSetup
+do_header
+5 531 M
+(    #condition_list = ['s1', 's2', 's3', 's4']) s
+5 520 M
+(    condition_list = ['s1']) s
+5 498 M
+(    # Load all of the objects/condition) s
+5 487 M
+(    ins_pos = load_multiple_image_sets_from_directories\(directory_base, condition_list, object_list, test_files\)) s
+5 465 M
+(    ### Negative cases) s
+5 454 M
+(    # Define which objects to load) s
+5 443 M
+(    #object_list2 = ['o45', 'o42', 'o43', 'o44']) s
+5 432 M
+(    object_list2 = ['o41']) s
+5 421 M
+(    ins_neg = load_multiple_image_sets_from_directories\(directory_base, condition_list, object_list2, test_files\)) s
+5 399 M
+(    ### Create the labels: first set of images are 'class 1'; second set is 'class 0') s
+5 388 M
+(    outs_pos = np.ones\(\(ins_pos.shape[0],\)\)) s
+5 377 M
+(    outs_neg = np.zeros\(\(ins_neg.shape[0],\)\)) s
+5 355 M
+(    # Combine the positive and negative examples) s
+5 344 M
+(    ins = np.append\(ins_pos, ins_neg, axis=0\)) s
+5 333 M
+(    outs = np.append\(outs_pos, outs_neg, axis=0\)) s
+5 311 M
+(    ########################################################################) s
+5 300 M
+(    # Validation set) s
+5 289 M
+(    # Define which files to load for each object) s
+5 278 M
+(    test_files = '.*[5].png') s
+5 256 M
+(    ### Positives) s
+5 245 M
+(    # Define which objects to load) s
+5 234 M
+(    object_list = ['o22']) s
+5 223 M
+(    #object_list = ['o21']) s
+5 212 M
+(    condition_list = ['s2']) s
+5 190 M
+(    # Load the positives) s
+5 179 M
+(    ins_pos_validation = load_multiple_image_sets_from_directories\(directory_base, condition_list, object_list, test_files\)) s
+5 157 M
+(    ### Negatives) s
+5 146 M
+(    # Define objects) s
+5 135 M
+(    object_list2 = ['o42']) s
+5 124 M
+(    #object_list2 = ['o41']) s
+5 102 M
+(    # Load the negative cases) s
+5 91 M
+(    ins_neg_validation = load_multiple_image_sets_from_directories\(directory_base, condition_list, object_list2, test_files\)) s
+5 69 M
+(    ### Create the labels) s
+5 58 M
+(    outs_pos_validation = np.ones\(\(ins_pos_validation.shape[0],\)\)) s
+5 47 M
+(    outs_neg_validation = np.zeros\(\(ins_pos_validation.shape[0],\)\)) s
+5 25 M
+(    # Combine the positives from the negatives) s
+5 14 M
+(    ins_validation = np.append\(ins_pos_validation, ins_neg_validation, axis=0\)) s
+5 3 M
+(    outs_validation = np.append\(outs_pos_validation, outs_neg_validation, axis=0\)) s
+_R
+S
+%%Page: (4) 4
+%%BeginPageSetup
+_S
+90 rotate
+36 -577 translate
+/pagenum 4 def
+/fname (cnn_classifier_solution.py) def
+/fdir (.) def
+/ftail (cnn_classifier_solution.py) def
+% User defined strings:
+/fmodstr (Tue Aug 05 22:15:14 2025) def
+/pagenumstr (4) def
+/user_header_p false def
+/user_footer_p false def
+%%EndPageSetup
+do_header
+5 520 M
+(    # Return the training and validation images and their labels) s
+5 509 M
+(    return ins, outs, ins_validation, outs_validation, 2) s
+5 487 M
+(def create_classifier_network\(image_size:\(int,int\),) s
+5 476 M
+(                              nchannels:int=3,) s
+5 465 M
+(                              n_classes:int=2, ) s
+5 454 M
+(                              learning_rate:float=.0001, ) s
+5 443 M
+(                              lambda_l2:float=None,) s
+5 432 M
+(                              p_dropout:float=None,) s
+5 421 M
+(                              p_spatial_dropout:float=None,) s
+5 410 M
+(                              n_filters:[int]=  [10],) s
+5 399 M
+(                              kernel_size:[int]=[3],) s
+5 388 M
+(                              pooling:[int]=[1],) s
+5 377 M
+(                              n_hidden:[int]=[5],) s
+5 366 M
+(                              activation_internal:str='elu',) s
+5 355 M
+(                              activation_output:str='softmax',) s
+5 344 M
+(                              loss:str='sparse_categorical_crossentropy',) s
+5 333 M
+(                              metrics:[str]=['sparse_categorical_accuracy']\):) s
+5 322 M
+(    ) s
+5 300 M
+(    ''') s
+5 289 M
+(    Create the classifier CNN network.) s
+5 267 M
+(    :param image_size: 2-tuple \(rows, col\)) s
+5 256 M
+(    :param nchannels: number of image channels \(typeically 3: red, green, blue\)) s
+5 245 M
+(    :param n_classes: number of classes) s
+5 234 M
+(    :param learning_rate: float) s
+5 223 M
+(    :param lambda_l2: L2 regularization parameter) s
+5 212 M
+(    :param p_dropout: Dropout parameter for fully connected layers) s
+5 201 M
+(    :param p_spatial_dropout: Spatial dropout parameter for CNN layers) s
+5 190 M
+(    :param n_filters: Number of filters for each convolutional module) s
+5 179 M
+(    :param kernel_size: Kernel size for each convolutional module) s
+5 168 M
+(    :param pooling: Pooling size for each convolutional module) s
+5 157 M
+(    :param n_hidden: Number of hidden units in each fully connected layer) s
+5 146 M
+(    :activation_internal: Activation function used for all internal layers) s
+5 135 M
+(    :activation_output: Activation function used for output layer) s
+5 124 M
+(    :loss: Loss function) s
+5 113 M
+(    :metrics: List of metrics to measure performance against) s
+5 102 M
+(    ) s
+5 91 M
+(    ''') s
+5 80 M
+(    ) s
+5 69 M
+(    # L2 Regularization support) s
+5 58 M
+(    if lambda_l2 is not None:) s
+5 47 M
+(        # assume a float) s
+5 36 M
+(        regularizer = keras.regularizers.l2\(lambda_l2\)) s
+5 25 M
+(    else:) s
+5 14 M
+(        regularizer = None) s
+5 3 M
+(        ) s
+_R
+S
+%%Page: (5) 5
+%%BeginPageSetup
+_S
+90 rotate
+36 -577 translate
+/pagenum 5 def
+/fname (cnn_classifier_solution.py) def
+/fdir (.) def
+/ftail (cnn_classifier_solution.py) def
+% User defined strings:
+/fmodstr (Tue Aug 05 22:15:14 2025) def
+/pagenumstr (5) def
+/user_header_p false def
+/user_footer_p false def
+%%EndPageSetup
+do_header
+5 531 M
+(    # Construct the model) s
+5 520 M
+(    model = Sequential\(\)) s
+5 509 M
+(    ) s
+5 498 M
+(    model.add\(Input\(shape=image_size+\(nchannels,\), name = 'input'\)\)) s
+5 487 M
+(   ) s
+5 476 M
+(    # convolutional modules) s
+5 465 M
+(    for i, \(n, s, p\) in enumerate\(zip\(n_filters, kernel_size, pooling\)\):) s
+5 454 M
+(        model.add\(Convolution2D\(filters=n,) s
+5 443 M
+(                                kernel_size=s,) s
+5 432 M
+(                                padding='same',) s
+5 421 M
+(                                use_bias=True,) s
+5 410 M
+(                                kernel_regularizer=regularizer,) s
+5 399 M
+(                                name='C%d'%\(i\),) s
+5 388 M
+(                                activation=activation_internal\)\)) s
+5 377 M
+(        ) s
+5 366 M
+(        if p_spatial_dropout is not None:) s
+5 355 M
+(            model.add\(SpatialDropout2D\(p_spatial_dropout\)\)) s
+5 344 M
+(            ) s
+5 333 M
+(        if p > 1:) s
+5 322 M
+(            model.add\(MaxPooling2D\(pool_size=p,) s
+5 311 M
+(                                   strides=p,) s
+5 300 M
+(                                   name='MP%d'%\(i\)\)\)) s
+5 289 M
+(        ) s
+5 278 M
+(    ) s
+5 267 M
+(    # Flatten) s
+5 256 M
+(    model.add\(GlobalMaxPooling2D\(\)\)) s
+5 245 M
+(    ) s
+5 234 M
+(    # Dense layers) s
+5 223 M
+(    for i,n in enumerate\(n_hidden\):) s
+5 212 M
+(        model.add\(Dense\(units=n,) s
+5 201 M
+(                    activation=activation_internal,) s
+5 190 M
+(                    use_bias='True',) s
+5 179 M
+(                    kernel_regularizer=regularizer,) s
+5 168 M
+(                    name='D%d'%i\)\)) s
+5 157 M
+(        ) s
+5 146 M
+(        if p_dropout is not None:) s
+5 135 M
+(            model.add\(Dropout\(p_dropout\)\)) s
+5 124 M
+(    ) s
+5 113 M
+(    # Output) s
+5 102 M
+(    model.add\(Dense\(units=n_classes,) s
+5 91 M
+(                    activation=activation_output,) s
+5 80 M
+(                    use_bias='True',) s
+5 69 M
+(                    name='output'\)\)) s
+5 58 M
+(    ) s
+5 47 M
+(    # Optimizer) s
+5 36 M
+(    opt = tf.keras.optimizers.Adam\(learning_rate = learning_rate,) s
+5 25 M
+(                                   amsgrad = False\)) s
+5 14 M
+(    ) s
+5 3 M
+(    # Bind the model to the optimizer) s
+_R
+S
+%%Page: (6) 6
+%%BeginPageSetup
+_S
+90 rotate
+36 -577 translate
+/pagenum 6 def
+/fname (cnn_classifier_solution.py) def
+/fdir (.) def
+/ftail (cnn_classifier_solution.py) def
+% User defined strings:
+/fmodstr (Tue Aug 05 22:15:14 2025) def
+/pagenumstr (6) def
+/user_header_p false def
+/user_footer_p false def
+%%EndPageSetup
+do_header
+5 531 M
+(    model.compile\(loss=loss,) s
+5 520 M
+(                  optimizer=opt,) s
+5 509 M
+(                  metrics=metrics\)) s
+5 498 M
+(    ) s
+5 487 M
+(    return model) s
+5 454 M
+(def create_parser\(\)->argparse.ArgumentParser:) s
+5 443 M
+(    ''') s
+5 432 M
+(    Create argument parser) s
+5 421 M
+(    ''') s
+5 410 M
+(    # Parse the command-line arguments) s
+5 399 M
+(    parser = argparse.ArgumentParser\(description='CNN', fromfile_prefix_chars='@'\)) s
+5 377 M
+(    # High-level commands) s
+5 366 M
+(    parser.add_argument\('--force', action='store_true', help='Execute experiment even if there is already a results file'\)) s
+5 355 M
+(    parser.add_argument\('--nogo', action='store_true', help='Do not perform the experiment'\)) s
+5 344 M
+(    parser.add_argument\('--save_model', action='store_true', help='Save the trained model'\)) s
+5 333 M
+(    parser.add_argument\('--verbose', '-v', action='count', default=0, help="Verbosity level"\)) s
+5 322 M
+(    ) s
+5 311 M
+(    # Training Parameters) s
+5 300 M
+(    parser.add_argument\('--lrate', type=float, default=0.0001, help="Learning rate"\)) s
+5 289 M
+(    parser.add_argument\('--epochs', type=int, default=100, help="Number of training epochs"\)) s
+5 278 M
+(    parser.add_argument\('--patience', type=int, default=100, help='Number of epochs to wait before Early Stopping'\)) s
+5 267 M
+(    parser.add_argument\('--monitor', type=str, default='loss', help="Monitor variable for Early Stopping"\)) s
+5 256 M
+(    parser.add_argument\('--min_delta', type=float, default=0.01, help="Minimum delta for Early Stopping"\)) s
+5 245 M
+(    ) s
+5 234 M
+(    # Network Parameters) s
+5 223 M
+(    parser.add_argument\('--dropout', type=float, default=None, help="Dropout rate"\)) s
+5 212 M
+(    parser.add_argument\('--spatial_dropout', type=float, default=None, help="Spatial dropout rate"\)) s
+5 201 M
+(    parser.add_argument\('--lambda_l2', '--l2', type=float, default=None, help="L2 Regularization"\)) s
+5 190 M
+(    parser.add_argument\('--n_hidden', nargs='+', type=int, default=[5], help="Dense layer sizes"\)) s
+5 179 M
+(    parser.add_argument\('--n_filters', nargs='+', type=int, default=[10], help="Number of Conv filters"\)) s
+5 168 M
+(    parser.add_argument\('--kernel_sizes', nargs='+', type=int, default=[3], help="Kernel sizes"\)) s
+5 157 M
+(    parser.add_argument\('--pooling', nargs='+', type=int, default=[0], help="Pooling sizes"\)) s
+5 135 M
+(    # Dataset) s
+5 124 M
+(    parser.add_argument\('--dataset', type=str, default='/home/fagg/datasets/core50', help="Learning rate"\)) s
+5 102 M
+(    # Misc) s
+5 91 M
+(    parser.add_argument\('--render', action='store_true', help='Generate a PNG of the network'\)) s
+5 69 M
+(    # WandB support                                                                                                           ) s
+5 58 M
+(        ) s
+5 47 M
+(    parser.add_argument\('--wandb', action='store_true', help='Turn on reporting to WandB'\)) s
+5 36 M
+(    parser.add_argument\('--wandb_project', type=str, default='XOR', help='WandB project name'\)) s
+5 25 M
+(    parser.add_argument\('--wandb_run_label', type=str, default='version0', help='WandB project name'\)) s
+5 3 M
+(    return parser) s
+_R
+S
+%%Page: (7) 7
+%%BeginPageSetup
+_S
+90 rotate
+36 -577 translate
+/pagenum 7 def
+/fname (cnn_classifier_solution.py) def
+/fdir (.) def
+/ftail (cnn_classifier_solution.py) def
+% User defined strings:
+/fmodstr (Tue Aug 05 22:15:14 2025) def
+/pagenumstr (7) def
+/user_header_p false def
+/user_footer_p false def
+%%EndPageSetup
+do_header
+5 509 M
+(def generate_fname\(args:argparse.ArgumentParser\)->str:) s
+5 498 M
+(    ''') s
+5 487 M
+(    Translate the parsed args into a file name that describes the specific experiment) s
+5 465 M
+(    :param args: Argument object from the parser) s
+5 454 M
+(    :return: String that describes this experiment) s
+5 443 M
+(    ''') s
+5 432 M
+(    strng = 'cnn') s
+5 410 M
+(    if args.dropout is not None:) s
+5 399 M
+(        strng = strng + '_DR_%.2f'%\(args.dropout\)) s
+5 388 M
+(        ) s
+5 377 M
+(    if args.spatial_dropout is not None:) s
+5 366 M
+(        strng = strng + '_SDR_%.2f'%\(args.spatial_dropout\)) s
+5 355 M
+(    ) s
+5 344 M
+(    if args.lambda_l2 is not None:) s
+5 333 M
+(        strng = strng + '_L2_%f'%\(args.lambda_l2\)) s
+5 322 M
+(        ) s
+5 311 M
+(    strng = strng + '_filters_' + '_'.join\(str\(n\) for n in args.n_filters\)) s
+5 300 M
+(    ) s
+5 289 M
+(    strng = strng + '_kernels_' + '_'.join\(str\(n\) for n in args.kernel_sizes\)) s
+5 278 M
+(    ) s
+5 267 M
+(    strng = strng + '_pooling_' + '_'.join\(str\(n\) for n in args.pooling\)) s
+5 256 M
+(    ) s
+5 245 M
+(    strng = strng + '_hidden_' + '_'.join\(str\(n\) for n in args.n_hidden\)) s
+5 234 M
+(    ) s
+5 223 M
+(    return strng) s
+5 201 M
+(    ) s
+5 190 M
+(def execute_exp\(args:argparse.ArgumentParser\):) s
+5 179 M
+(    ''') s
+5 168 M
+(    Do all of the work) s
+5 157 M
+(    :param args: Argument data structure) s
+5 146 M
+(    ''') s
+5 124 M
+(    # Load the data) s
+5 113 M
+(    ins, outs, ins_validation, outs_validation, n_classes = load_data_sets\(args.dataset\)) s
+5 91 M
+(    # Create the model) s
+5 80 M
+(    model = create_classifier_network\(\(ins.shape[1], ins.shape[2]\), ) s
+5 69 M
+(                                      ins.shape[3],) s
+5 58 M
+(                                      n_classes, ) s
+5 47 M
+(                                      learning_rate=args.lrate,) s
+5 36 M
+(                                      p_spatial_dropout=args.spatial_dropout,) s
+5 25 M
+(                                      p_dropout=args.dropout,) s
+5 14 M
+(                                      lambda_l2=args.lambda_l2,) s
+5 3 M
+(                                      n_filters=args.n_filters,) s
+_R
+S
+%%Page: (8) 8
+%%BeginPageSetup
+_S
+90 rotate
+36 -577 translate
+/pagenum 8 def
+/fname (cnn_classifier_solution.py) def
+/fdir (.) def
+/ftail (cnn_classifier_solution.py) def
+% User defined strings:
+/fmodstr (Tue Aug 05 22:15:14 2025) def
+/pagenumstr (8) def
+/user_header_p false def
+/user_footer_p false def
+%%EndPageSetup
+do_header
+5 531 M
+(                                      kernel_size=args.kernel_sizes,) s
+5 520 M
+(                                      pooling=args.pooling,) s
+5 509 M
+(                                      n_hidden=args.n_hidden\)) s
+5 487 M
+(    # Optionally print the model summary) s
+5 476 M
+(    if args.verbose > 0:) s
+5 465 M
+(        print\(model.summary\(\)\)) s
+5 443 M
+(    # Results pickle file name) s
+5 432 M
+(    fbase = generate_fname\(args\)) s
+5 421 M
+(    results_fname = 'results/%s_results.pkl'%\(fbase\)) s
+5 399 M
+(    # Does this file already exist?) s
+5 388 M
+(    if not args.force and os.path.exists\(results_fname\):) s
+5 377 M
+(        print\("File %s already exists."%results_fname\)) s
+5 366 M
+(        return) s
+5 344 M
+(    if args.nogo:) s
+5 333 M
+(        # Stop execution) s
+5 322 M
+(        print\("No execution"\)) s
+5 311 M
+(        return) s
+5 300 M
+(        ) s
+5 289 M
+(    #############################################) s
+5 278 M
+(    # Plot the model to a file) s
+5 267 M
+(    if args.render:) s
+5 256 M
+(        plot_model\(model, to_file='results/%s_model_plot.png'%fbase, show_shapes=True, show_layer_names=True\)) s
+5 245 M
+(    ) s
+5 234 M
+(    # Callbacks) s
+5 223 M
+(    cbs = []) s
+5 212 M
+(    early_stopping_cb = keras.callbacks.EarlyStopping\(patience=args.patience,) s
+5 201 M
+(                                                      restore_best_weights=True,) s
+5 190 M
+(                                                      min_delta=args.min_delta,) s
+5 179 M
+(                                                      monitor=args.monitor\)) s
+5 168 M
+(    cbs.append\(early_stopping_cb\)) s
+5 146 M
+(    #############################################) s
+5 135 M
+(    # WandB) s
+5 124 M
+(    ) s
+5 113 M
+(    if args.wandb:) s
+5 102 M
+(        # Connect to WandB) s
+5 91 M
+(        wandb.init\(project=args.wandb_project,) s
+5 80 M
+(                   name=f'{args.wandb_run_label}',) s
+5 69 M
+(                   notes=fbase,) s
+5 58 M
+(                   config=vars\(args\)\)) s
+5 36 M
+(        if args.render:) s
+5 25 M
+(            # Log the architecture diagram to WandB) s
+5 14 M
+(            wandb.log\({'architecture': wandb.Image\('results/%s_model_plot.png'%fbase\)}\)) s
+_R
+S
+%%Page: (9) 9
+%%BeginPageSetup
+_S
+90 rotate
+36 -577 translate
+/pagenum 9 def
+/fname (cnn_classifier_solution.py) def
+/fdir (.) def
+/ftail (cnn_classifier_solution.py) def
+% User defined strings:
+/fmodstr (Tue Aug 05 22:15:14 2025) def
+/pagenumstr (9) def
+/user_header_p false def
+/user_footer_p false def
+%%EndPageSetup
+do_header
+5 531 M
+(        # Log hostname) s
+5 520 M
+(        wandb.log\({'hostname': socket.gethostname\(\)}\)) s
+5 498 M
+(        # Create WandB callback) s
+5 487 M
+(        wandb_metrics_cb = wandb.keras.WandbMetricsLogger\(\)) s
+5 476 M
+(        cbs.append\(wandb_metrics_cb\)) s
+5 454 M
+(    #################################) s
+5 443 M
+(    # Training) s
+5 432 M
+(    history = model.fit\(x=ins, y=outs, epochs=args.epochs, ) s
+5 421 M
+(                        verbose=\(args.verbose >= 3\),) s
+5 410 M
+(                        validation_data=\(ins_validation, outs_validation\), ) s
+5 399 M
+(                        callbacks=cbs\)) s
+5 388 M
+(    ) s
+5 377 M
+(    #################################) s
+5 366 M
+(    # Generate results data) s
+5 355 M
+(    results = {}) s
+5 344 M
+(    wandb_results = {}) s
+5 322 M
+(    results['args'] = args) s
+5 311 M
+(    results['predict_validation'] = model.predict\(ins_validation\)) s
+5 300 M
+(    results['predict_validation_eval'] = model.evaluate\(ins_validation, outs_validation\)) s
+5 289 M
+(    ) s
+5 278 M
+(    wandb_results['final_val_loss'] = results['predict_validation_eval'][0]) s
+5 267 M
+(    wandb_results['final_val_accuracy'] = results['predict_validation_eval'][1]) s
+5 245 M
+(    if args.verbose >= 2:) s
+5 234 M
+(        # Report the prediction for the validation set) s
+5 212 M
+(        # Probabilities) s
+5 201 M
+(        probs = results['predict_validation']) s
+5 190 M
+(        # Predicted class is the class with the highest probability) s
+5 179 M
+(        preds = np.argmax\(probs, axis=-1\)) s
+5 168 M
+(        # Loop over the examples: report true, prediction, and probabilities) s
+5 157 M
+(        print\("Ground Truth\\tPrediction\\tProbabilities"\)) s
+5 146 M
+(        for i in range\(outs_validation.shape[0]\):) s
+5 135 M
+(            print\(f'{int\(outs_validation[i]\):d}\\t\\t{int\(preds[i]\):d}\\t\\t{probs[i,0]:.3f}\\t{probs[i,1]:.3f}'\)) s
+5 124 M
+(            ) s
+5 113 M
+(            ) s
+5 102 M
+(        ) s
+5 91 M
+(    results['predict_training'] = model.predict\(ins\)) s
+5 80 M
+(    results['predict_training_eval'] = model.evaluate\(ins, outs\)) s
+5 69 M
+(    wandb_results['final_training_loss'] = results['predict_training_eval'][0]) s
+5 58 M
+(    wandb_results['final_training_accuracy'] = results['predict_training_eval'][1]) s
+5 36 M
+(    ) s
+5 25 M
+(    results['history'] = history.history) s
+5 3 M
+(    #############################################) s
+_R
+S
+%%Page: (10) 10
+%%BeginPageSetup
+_S
+90 rotate
+36 -577 translate
+/pagenum 10 def
+/fname (cnn_classifier_solution.py) def
+/fdir (.) def
+/ftail (cnn_classifier_solution.py) def
+% User defined strings:
+/fmodstr (Tue Aug 05 22:15:14 2025) def
+/pagenumstr (10) def
+/user_header_p false def
+/user_footer_p false def
+%%EndPageSetup
+do_header
+5 531 M
+(    if args.wandb:) s
+5 520 M
+(        # Write final performance measures ) s
+5 509 M
+(        wandb.log\(wandb_results\)) s
+5 487 M
+(        # Close connection to WandB) s
+5 476 M
+(        wandb.finish\(\)) s
+5 454 M
+(    ############################################) s
+5 443 M
+(    # Save results) s
+5 432 M
+(    results['fname_base'] = fbase) s
+5 421 M
+(    with open\(results_fname, "wb"\) as fp:) s
+5 410 M
+(        pickle.dump\(results, fp\)) s
+5 399 M
+(    ) s
+5 388 M
+(    # Save model) s
+5 377 M
+(    if args.save_model:) s
+5 366 M
+(        model.save\("results/%s_model.keras"%\(fbase\)\)) s
+5 344 M
+(if __name__ == "__main__":) s
+5 333 M
+(    # Turn off GPU) s
+5 322 M
+(    os.environ['CUDA_VISIBLE_DEVICES'] = '-1') s
+5 311 M
+(    ) s
+5 300 M
+(    # Parse incoming arguments) s
+5 289 M
+(    parser = create_parser\(\)) s
+5 278 M
+(    args = parser.parse_args\(\)) s
+5 256 M
+(    # Do the work) s
+5 245 M
+(    execute_exp\(args\)) s
+_R
+S
+%%Trailer
+%%Pages: 10
+%%DocumentNeededResources: font Courier-Bold Courier 
+%%EOF

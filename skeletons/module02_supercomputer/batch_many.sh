@@ -20,13 +20,13 @@
 #SBATCH --ntasks=1
 #SBATCH --mem=1G
 # The %j is translated into the job number
-#SBATCH --output=results/xor_%j_stdout.txt
-#SBATCH --error=results/xor_%j_stderr.txt
-#SBATCH --time=00:02:00
+#SBATCH --output=logs/xor_%j_stdout.txt
+#SBATCH --error=logs/xor_%j_stderr.txt
+#SBATCH --time=00:05:00
 #SBATCH --job-name=xor_test
 #SBATCH --mail-user=YOUR EMAIL HERE
 #SBATCH --mail-type=ALL
-#SBATCH --chdir=/home/fagg/deep_learning_practice/skeletons/module02_supercomputer
+#SBATCH --chdir=INSERT_YOUR_EXPERIMENT_DIRECTORY_HERE
 #SBATCH --array=0-3
 #
 #################################################
@@ -35,5 +35,5 @@
 . /home/fagg/tf_setup.sh
 conda activate dnn
 
-# Change this line to start an instance of your experiment
+# Change this line to configure an instance of your experiment
 python xor_base.py --epochs 10 --exp $SLURM_ARRAY_TASK_ID
