@@ -10,4 +10,12 @@ Code for the Deep Learning Practice course
    * Videos: https://youtube.com/playlist?list=PL9Ldm1ZtwubngAi6mQ3lLzUDVRTR4UfoV
 * Module 3: Instrumenting our models for Weights and Biases
    * Videos: none yet
-   * 
+
+* Module 4: Probabilistic Neural Networks (predicting parametric distributions)
+   * Videos: none yet
+
+* Module 5: Convolutional Neural Networks
+   * Image recognition for the Core 50 dataset (this implementation assumes that you have a local copy of the 128x128 core 50 image set
+   * Videos: none yet
+
+
